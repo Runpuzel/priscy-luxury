@@ -1,0 +1,52 @@
+project_id = "priscy-luxury-slippers"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "https://priscyluxury.com"
+additional_redirect_urls = [
+  "https://priscyluxury.com/**",
+  "https://admin.priscyluxury.com/**",
+  "http://localhost:3000/**",
+  "http://localhost:8080/**"
+]
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = true
+
+[functions.create-order]
+verify_jwt = false
+
+[functions.paystack-webhook]
+verify_jwt = false
+
+[functions.track-order]
+verify_jwt = false
+
+[functions.submit-review]
+verify_jwt = false
+
+[functions.release-expired-reservations]
+verify_jwt = false
+
+[functions.create-manual-order]
+verify_jwt = true
+
+[functions.og-preview]
+verify_jwt = false

@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Allow: /landing.html
+Allow: /catalogue
+Allow: /product/
+Allow: /pages/
+Disallow: /checkout
+Disallow: /order/
+
+Sitemap: https://priscyluxury.com/sitemap.xml
