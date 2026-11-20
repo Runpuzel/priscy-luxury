@@ -4,7 +4,7 @@
 > **Slogan:** *"Premium quality, affordable prices, unbeatable style!"*  
 > **Contact / WhatsApp:** `0550571248` (`+233 55 057 1248`) • `adupriscytwum@gmail.com`
 
-A responsive **Flutter Web customer storefront** and **Flutter Web owner admin dashboard** sharing a single typed codebase, backed by **Supabase** (Postgres, Row Level Security, Auth, Storage, and Deno Edge Functions), **Paystack Ghana Mobile Money (GHS)**, and **1-tap WhatsApp order & status workflows**.
+A responsive **Flutter Web customer storefront** and **Flutter Web owner admin dashboard** sharing a single typed codebase, backed by **Supabase** (Postgres, Row Level Security, Auth, Storage, and Deno Edge Functions), **Manual MoMo payment (seller-verified) + optional Paystack (GHS)**, and **1-tap WhatsApp order & status workflows**.
 
 ---
 
@@ -51,6 +51,20 @@ priscy-luxury/
 └── docs/
     └── OWNER_TRAINING_GUIDE.md     # Illustrated-style step-by-step operations manual for Priscilla
 ```
+
+---
+
+## Manual MoMo Payment Flow (Default)
+
+Customers pay the seller directly, then submit proof for seller verification:
+
+1. **Checkout** — customer picks *Manual MoMo* (default) or *Paystack Online*
+2. **Pay** — customer sends exact total to **MoMo 0550571248 (Priscilla Adutwum)** with order number as reference
+3. **Submit proof** — customer enters Transaction ID + sender name/phone on `/checkout/manual-payment`
+4. **Seller verifies** — Priscilla opens **Admin → Orders → ⏳ Awaiting Verification**, checks MoMo, taps **✅ Approve & Confirm** (stock deducted, order confirmed) or **Reject** (customer re-submits)
+5. **WhatsApp** — customer auto-notified on approve/reject
+
+Manual orders reserve stock for **24 hours** (vs 15 min for Paystack). New Edge Functions: `submit-payment-proof` (public) + `verify-manual-payment` (admin-only). New RPCs: `submit_manual_payment_proof`, `verify_manual_payment`.
 
 ---
 

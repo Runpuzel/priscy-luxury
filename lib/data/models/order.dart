@@ -113,7 +113,15 @@ class Order {
     required this.total,
     this.status = OrderStatus.pendingPayment,
     this.paymentStatus = PaymentStatus.unpaid,
+    this.paymentMethod = PaymentMethod.manualMomo,
     this.paystackReference,
+    this.manualTxnId,
+    this.manualSenderName,
+    this.manualSenderPhone,
+    this.manualScreenshotUrl,
+    this.manualSubmittedAt,
+    this.manualVerifiedAt,
+    this.manualRejectionReason,
     this.reservedUntil,
     required this.createdAt,
     this.items = const [],
@@ -139,16 +147,38 @@ class Order {
   final double total;
   final OrderStatus status;
   final PaymentStatus paymentStatus;
+  final PaymentMethod paymentMethod;
   final String? paystackReference;
+  final String? manualTxnId;
+  final String? manualSenderName;
+  final String? manualSenderPhone;
+  final String? manualScreenshotUrl;
+  final DateTime? manualSubmittedAt;
+  final DateTime? manualVerifiedAt;
+  final String? manualRejectionReason;
   final DateTime? reservedUntil;
   final DateTime createdAt;
   final List<OrderItem> items;
   final List<OrderEvent> events;
 
+  bool get isManualPayment => paymentMethod == PaymentMethod.manualMomo;
+  bool get needsVerification =>
+      isManualPayment &&
+      paymentStatus == PaymentStatus.awaitingVerification;
+  bool get hasSubmittedProof => manualSubmittedAt != null;
+
   Order copyWith({
     OrderStatus? status,
     PaymentStatus? paymentStatus,
+    PaymentMethod? paymentMethod,
     String? paystackReference,
+    String? manualTxnId,
+    String? manualSenderName,
+    String? manualSenderPhone,
+    String? manualScreenshotUrl,
+    DateTime? manualSubmittedAt,
+    DateTime? manualVerifiedAt,
+    String? manualRejectionReason,
     DateTime? reservedUntil,
     bool clearReservedUntil = false,
     String? notes,
@@ -175,7 +205,15 @@ class Order {
       total: total,
       status: status ?? this.status,
       paymentStatus: paymentStatus ?? this.paymentStatus,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
       paystackReference: paystackReference ?? this.paystackReference,
+      manualTxnId: manualTxnId ?? this.manualTxnId,
+      manualSenderName: manualSenderName ?? this.manualSenderName,
+      manualSenderPhone: manualSenderPhone ?? this.manualSenderPhone,
+      manualScreenshotUrl: manualScreenshotUrl ?? this.manualScreenshotUrl,
+      manualSubmittedAt: manualSubmittedAt ?? this.manualSubmittedAt,
+      manualVerifiedAt: manualVerifiedAt ?? this.manualVerifiedAt,
+      manualRejectionReason: manualRejectionReason ?? this.manualRejectionReason,
       reservedUntil:
           clearReservedUntil ? null : (reservedUntil ?? this.reservedUntil),
       createdAt: createdAt,
@@ -215,7 +253,19 @@ class Order {
       total: (json['total'] as num?)?.toDouble() ?? 0,
       status: OrderStatus.fromString(json['status']?.toString()),
       paymentStatus: PaymentStatus.fromString(json['payment_status']?.toString()),
+      paymentMethod: PaymentMethod.fromString(json['payment_method']?.toString()),
       paystackReference: json['paystack_reference']?.toString(),
+      manualTxnId: json['manual_txn_id']?.toString(),
+      manualSenderName: json['manual_sender_name']?.toString(),
+      manualSenderPhone: json['manual_sender_phone']?.toString(),
+      manualScreenshotUrl: json['manual_screenshot_url']?.toString(),
+      manualSubmittedAt: json['manual_submitted_at'] != null
+          ? DateTime.tryParse(json['manual_submitted_at'].toString())
+          : null,
+      manualVerifiedAt: json['manual_verified_at'] != null
+          ? DateTime.tryParse(json['manual_verified_at'].toString())
+          : null,
+      manualRejectionReason: json['manual_rejection_reason']?.toString(),
       reservedUntil: json['reserved_until'] != null
           ? DateTime.tryParse(json['reserved_until'].toString())
           : null,
@@ -249,7 +299,15 @@ class Order {
         'total': total,
         'status': status.dbValue,
         'payment_status': paymentStatus.dbValue,
+        'payment_method': paymentMethod.dbValue,
         'paystack_reference': paystackReference,
+        'manual_txn_id': manualTxnId,
+        'manual_sender_name': manualSenderName,
+        'manual_sender_phone': manualSenderPhone,
+        'manual_screenshot_url': manualScreenshotUrl,
+        'manual_submitted_at': manualSubmittedAt?.toIso8601String(),
+        'manual_verified_at': manualVerifiedAt?.toIso8601String(),
+        'manual_rejection_reason': manualRejectionReason,
         'reserved_until': reservedUntil?.toIso8601String(),
         'created_at': createdAt.toIso8601String(),
         'order_items': items.map((e) => e.toJson()).toList(),
@@ -272,6 +330,7 @@ class CheckoutRequest {
     this.address,
     this.landmark,
     this.notes,
+    this.paymentMethod = PaymentMethod.manualMomo,
   });
 
   final List<Map<String, dynamic>> items;
@@ -286,6 +345,7 @@ class CheckoutRequest {
   final String? address;
   final String? landmark;
   final String? notes;
+  final PaymentMethod paymentMethod;
 }
 
 @immutable
@@ -299,6 +359,7 @@ class CreateOrderResult {
     required this.total,
     this.isDemoCheckout = false,
     this.whatsappUrl,
+    this.paymentMethod = PaymentMethod.manualMomo,
   });
 
   final String orderId;
@@ -309,4 +370,7 @@ class CreateOrderResult {
   final double total;
   final bool isDemoCheckout;
   final String? whatsappUrl;
+  final PaymentMethod paymentMethod;
+
+  bool get isManualPayment => paymentMethod == PaymentMethod.manualMomo;
 }

@@ -20,6 +20,7 @@ interface CreateOrderPayload {
   landmark?: string | null;
   notes?: string | null;
   callback_base_url?: string;
+  payment_method?: 'paystack' | 'manual_momo';
 }
 
 Deno.serve(async (req: Request) => {
@@ -39,6 +40,7 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: 'Customer name and Mobile Money phone are required' }, 400);
     }
 
+    const paymentMethod = payload.payment_method === 'paystack' ? 'paystack' : 'manual_momo';
     const supabase = createServiceClient();
     const userId = await getAuthenticatedUserId(req);
 
@@ -85,8 +87,27 @@ Deno.serve(async (req: Request) => {
     // Save Paystack reference before calling gateway
     await supabase
       .from('orders')
-      .update({ paystack_reference: reference })
+      .update({ paystack_reference: reference, payment_method: paymentMethod })
       .eq('id', orderId);
+
+    if (paymentMethod === 'manual_momo') {
+      await supabase.from('orders').update({ reserved_until: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() }).eq('id', orderId);
+      return jsonResponse({
+        payment_method: 'manual_momo',
+        reference,
+        order_id: orderId,
+        order_number: orderNumber,
+        tracking_token: trackingToken,
+        subtotal: Number(rpcResult.subtotal),
+        delivery_fee: Number(rpcResult.delivery_fee),
+        total: totalGhs,
+        manual_momo_number: '0550571248',
+        manual_momo_name: 'Priscilla Adutwum',
+        manual_momo_networks: ['MTN MoMo', 'Telecel Cash', 'AT Money'],
+        instructions: 'Pay the exact total to the MoMo number above, then submit your Transaction ID on the next screen for seller verification.',
+        tracking_url: `${baseUrl.replace(/\/$/, '')}/track?order=${encodeURIComponent(orderNumber)}&token=${encodeURIComponent(trackingToken)}`,
+      });
+    }
 
     const paystackSecret = Deno.env.get('PAYSTACK_SECRET_KEY');
     if (!paystackSecret) {
@@ -135,6 +156,7 @@ Deno.serve(async (req: Request) => {
     }
 
     return jsonResponse({
+      payment_method: 'paystack',
       authorization_url: paystackJson.data.authorization_url,
       access_code: paystackJson.data.access_code,
       reference,

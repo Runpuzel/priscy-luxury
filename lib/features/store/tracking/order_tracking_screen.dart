@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_colors.dart';
@@ -301,6 +302,59 @@ class _TrackedOrderDetailsCard extends StatelessWidget {
                   ),
               ],
             ),
+          if (order.isManualPayment) ...[
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: order.needsVerification
+                    ? const Color(0xFFF3E8FF)
+                    : order.paymentStatus == PaymentStatus.paid
+                        ? AppColors.successSoft
+                        : AppColors.sand,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    order.needsVerification
+                        ? '⏳ Manual MoMo proof submitted — seller is verifying'
+                        : order.paymentStatus == PaymentStatus.paid
+                            ? '✅ Manual MoMo payment verified'
+                            : '📱 Manual MoMo payment — awaiting your proof',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    order.needsVerification
+                        ? 'Txn: ${order.manualTxnId ?? '-'} • The seller will confirm on WhatsApp shortly.'
+                        : order.paymentStatus == PaymentStatus.paid
+                            ? 'Your payment was confirmed by the seller.'
+                            : 'Pay ${CurrencyFormatter.formatGhs(order.total)} to MoMo ${AppConfig.manualMomoNumber} (${AppConfig.manualMomoName}), then submit your Transaction ID.',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  if (order.manualRejectionReason != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'Rejected: ${order.manualRejectionReason}',
+                      style: const TextStyle(fontSize: 12.5, color: AppColors.danger),
+                    ),
+                  ],
+                  if (order.paymentStatus != PaymentStatus.paid) ...[
+                    const SizedBox(height: 10),
+                    ElevatedButton.icon(
+                      onPressed: () => context.go(
+                        '/checkout/manual-payment?order=${Uri.encodeComponent(order.orderNumber)}&token=${Uri.encodeComponent(order.trackingToken)}&id=${Uri.encodeComponent(order.id)}',
+                      ),
+                      icon: const Icon(Icons.receipt_long_outlined, size: 16),
+                      label: Text(order.hasSubmittedProof ? 'Resubmit Proof' : 'Submit Payment Proof'),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
           const Divider(height: 32),
           Text('Items', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),

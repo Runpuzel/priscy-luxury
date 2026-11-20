@@ -148,6 +148,47 @@ class _OrderConfirmationScreenState
                           PaymentStatusBadge(status: order.paymentStatus),
                         ],
                       ),
+                      if (order.isManualPayment &&
+                          order.paymentStatus != PaymentStatus.paid) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: order.needsVerification
+                                ? const Color(0xFFF3E8FF)
+                                : AppColors.sand,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                order.needsVerification
+                                    ? '⏳ Proof submitted — awaiting seller verification'
+                                    : '📱 Next: Pay via MoMo & submit proof',
+                                style: const TextStyle(fontWeight: FontWeight.w800),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                order.needsVerification
+                                    ? 'We received your Transaction ID. The seller will verify and confirm on WhatsApp.'
+                                    : 'Pay ${CurrencyFormatter.formatGhs(order.total)} to MoMo 0550571248 (Priscilla Adutwum), then submit your Transaction ID for verification.',
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                              const SizedBox(height: 10),
+                              ElevatedButton.icon(
+                                onPressed: () => context.go(
+                                  '/checkout/manual-payment?order=${Uri.encodeComponent(order.orderNumber)}&token=${Uri.encodeComponent(order.trackingToken)}&id=${Uri.encodeComponent(order.id)}',
+                                ),
+                                icon: const Icon(Icons.receipt_long_outlined, size: 16),
+                                label: Text(order.hasSubmittedProof
+                                    ? 'View / Resubmit Proof'
+                                    : 'Pay & Submit Proof'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       const Divider(height: 32),
                       Container(
                         padding: const EdgeInsets.all(14),

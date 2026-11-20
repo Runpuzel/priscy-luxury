@@ -59,6 +59,8 @@ class PaymentStatusBadge extends StatelessWidget {
     final (Color bg, Color fg) = switch (status) {
       PaymentStatus.paid => (AppColors.successSoft, AppColors.success),
       PaymentStatus.unpaid => (AppColors.warningSoft, AppColors.warning),
+      PaymentStatus.awaitingVerification =>
+        (const Color(0xFFF3E8FF), const Color(0xFF6D28D9)),
       PaymentStatus.failed => (AppColors.dangerSoft, AppColors.danger),
     };
 

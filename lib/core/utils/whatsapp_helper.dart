@@ -100,11 +100,24 @@ class WhatsAppHelper {
     String body;
     switch (order.status) {
       case OrderStatus.pendingPayment:
-        final payLink = customPaymentUrl ?? trackingUrl;
-        body =
-            'Hello ${order.customerName}, thank you for ordering from *Priscy Luxury Slippers*! '
-            'Your order *${order.orderNumber}* (${CurrencyFormatter.formatGhs(order.total)}) is reserved for 15 minutes. '
-            'Complete your Mobile Money payment here: $payLink';
+        if (order.needsVerification) {
+          body =
+              'Hello ${order.customerName}, we have received your MoMo payment proof for order *${order.orderNumber}* '
+              '(Txn: ${order.manualTxnId ?? '-'}). Our team is verifying it now and will confirm shortly. '
+              'Track status: $trackingUrl';
+        } else if (order.isManualPayment) {
+          body =
+              'Hello ${order.customerName}, thank you for ordering from *Priscy Luxury Slippers*! '
+              'Your order *${order.orderNumber}* (${CurrencyFormatter.formatGhs(order.total)}) is reserved. '
+              'Please pay *${CurrencyFormatter.formatGhs(order.total)}* to MoMo *${AppConfig.manualMomoNumber}* (${AppConfig.manualMomoName}), '
+              'then submit your Transaction ID in the app for verification: $trackingUrl';
+        } else {
+          final payLink = customPaymentUrl ?? trackingUrl;
+          body =
+              'Hello ${order.customerName}, thank you for ordering from *Priscy Luxury Slippers*! '
+              'Your order *${order.orderNumber}* (${CurrencyFormatter.formatGhs(order.total)}) is reserved for 15 minutes. '
+              'Complete your Mobile Money payment here: $payLink';
+        }
       case OrderStatus.confirmed:
         body =
             'Hello ${order.customerName}, *Order Received & Payment Confirmed*! '

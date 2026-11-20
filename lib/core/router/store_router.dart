@@ -5,6 +5,7 @@ import '../../features/store/account/account_screen.dart';
 import '../../features/store/cart/cart_screen.dart';
 import '../../features/store/catalogue/catalogue_screen.dart';
 import '../../features/store/checkout/checkout_screen.dart';
+import '../../features/store/checkout/manual_payment_screen.dart';
 import '../../features/store/checkout/order_confirmation_screen.dart';
 import '../../features/store/checkout/paystack_demo_screen.dart';
 import '../../features/store/home/home_screen.dart';
@@ -53,6 +54,17 @@ final storeRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/checkout',
         builder: (context, state) => const CheckoutScreen(),
+      ),
+      GoRoute(
+        path: '/checkout/manual-payment',
+        builder: (context, state) {
+          final qp = state.uri.queryParameters;
+          return ManualPaymentScreen(
+            orderId: qp['id'],
+            orderNumber: qp['order'],
+            trackingToken: qp['token'],
+          );
+        },
       ),
       GoRoute(
         path: '/checkout/paystack-demo',

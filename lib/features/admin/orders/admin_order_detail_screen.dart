@@ -24,12 +24,56 @@ class _AdminOrderDetailScreenState
     extends ConsumerState<AdminOrderDetailScreen> {
   OrderStatus? _selectedStatus;
   final _noteCtrl = TextEditingController();
+  final _rejectionCtrl = TextEditingController();
   bool _saving = false;
+  bool _verifying = false;
 
   @override
   void dispose() {
     _noteCtrl.dispose();
+    _rejectionCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _verifyManualPayment(Order order, bool approve) async {
+    if (!approve && _rejectionCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a rejection reason.')),
+      );
+      return;
+    }
+    setState(() => _verifying = true);
+    try {
+      final waUrl = await ref.read(orderRepositoryProvider).verifyManualPayment(
+            orderId: order.id,
+            approve: approve,
+            rejectionReason: approve ? null : _rejectionCtrl.text.trim(),
+          );
+      _rejectionCtrl.clear();
+      ref.read(dataRefreshTriggerProvider.notifier).state++;
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(approve
+              ? '✅ Payment verified! Order confirmed. Stock deducted.'
+              : '❌ Payment rejected. Customer notified to re-submit.'),
+          action: waUrl != null
+              ? SnackBarAction(
+                  label: 'SEND WHATSAPP',
+                  textColor: AppColors.gold,
+                  onPressed: () => WhatsAppHelper.openUrl(waUrl),
+                )
+              : null,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(backgroundColor: AppColors.danger, content: Text('$e')),
+      );
+    } finally {
+      if (mounted) setState(() => _verifying = false);
+    }
   }
 
   Future<void> _saveStatus(Order currentOrder) async {
@@ -213,6 +257,9 @@ class _AdminOrderDetailScreenState
                 ),
               ),
               const SizedBox(height: 20),
+              // Manual MoMo verification panel (seller confirms payment)
+              if (order.isManualPayment) _buildVerificationPanel(order),
+              if (order.isManualPayment) const SizedBox(height: 20),
               // Customer + Status Update panels
               Wrap(
                 spacing: 20,
@@ -378,6 +425,145 @@ class _AdminOrderDetailScreenState
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildVerificationPanel(Order order) {
+    final awaiting = order.needsVerification;
+    final paid = order.paymentStatus == PaymentStatus.paid;
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: awaiting
+            ? const Color(0xFFF3E8FF)
+            : paid
+                ? AppColors.successSoft
+                : AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: awaiting
+              ? const Color(0xFF6D28D9)
+              : paid
+                  ? AppColors.success
+                  : AppColors.border,
+          width: awaiting ? 2 : 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(
+                awaiting
+                    ? Icons.verified_outlined
+                    : paid
+                        ? Icons.check_circle_rounded
+                        : Icons.phone_android_outlined,
+                color: awaiting
+                    ? const Color(0xFF6D28D9)
+                    : paid
+                        ? AppColors.success
+                        : AppColors.espresso,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  awaiting
+                      ? '⏳ Manual MoMo Payment — Verify to Confirm Order'
+                      : paid
+                          ? '✅ Manual Payment Verified'
+                          : '📱 Manual MoMo Payment (Awaiting Customer Proof)',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              PaymentStatusBadge(status: order.paymentStatus),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.7),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Payee: ${AppConfig.manualMomoName} • ${AppConfig.manualMomoNumber}'),
+                Text('Expected amount: ${CurrencyFormatter.formatGhs(order.total)}'),
+                if (order.manualTxnId != null)
+                  Text('Customer Txn ID: ${order.manualTxnId}'),
+                if (order.manualSenderName != null)
+                  Text('Sender: ${order.manualSenderName} (${order.manualSenderPhone ?? ''})'),
+                if (order.manualSubmittedAt != null)
+                  Text('Submitted: ${CurrencyFormatter.formatDateTime(order.manualSubmittedAt!)}'),
+                if (order.manualScreenshotUrl != null &&
+                    order.manualScreenshotUrl!.isNotEmpty)
+                  Text('Screenshot: ${order.manualScreenshotUrl}'),
+                if (order.manualRejectionReason != null)
+                  Text(
+                    'Last rejection: ${order.manualRejectionReason}',
+                    style: const TextStyle(color: AppColors.danger),
+                  ),
+              ],
+            ),
+          ),
+          if (awaiting) ...[
+            const SizedBox(height: 14),
+            const Text(
+              'Check your MoMo account for this Transaction ID and amount, then approve or reject below.',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _rejectionCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Rejection reason (required if rejecting)',
+                hintText: 'e.g. Amount mismatch — expected GH₵205.00',
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 10,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _verifying ? null : () => _verifyManualPayment(order, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.success,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  ),
+                  icon: const Icon(Icons.check_rounded, size: 18),
+                  label: Text(_verifying ? 'Verifying...' : '✅ Approve & Confirm Order'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _verifying ? null : () => _verifyManualPayment(order, false),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.danger,
+                    side: const BorderSide(color: AppColors.danger),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  ),
+                  icon: const Icon(Icons.close_rounded, size: 18),
+                  label: const Text('Reject Proof'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    WhatsAppHelper.openUrl(
+                      WhatsAppHelper.buildSupportChatUrl(
+                        message:
+                            'Hello ${order.customerName}, this is Priscy Luxury Slippers verifying your MoMo payment for order ${order.orderNumber} (Txn: ${order.manualTxnId ?? '-'}).',
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.chat_rounded, size: 18),
+                  label: const Text('Ask Customer on WhatsApp'),
+                ),
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }

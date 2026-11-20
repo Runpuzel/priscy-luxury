@@ -326,12 +326,24 @@ final adminAuthProvider =
 
 final adminOrdersFilterProvider = StateProvider<OrderStatus?>((ref) => null);
 
+/// Special filter: 'awaiting_verification' shows manual MoMo queue.
+final adminOrdersPaymentFilterProvider =
+    StateProvider<PaymentStatus?>((ref) => null);
+
 final adminOrdersProvider = FutureProvider<List<Order>>((ref) async {
   ref.watch(dataRefreshTriggerProvider);
   final statusFilter = ref.watch(adminOrdersFilterProvider);
-  return ref
+  final paymentFilter = ref.watch(adminOrdersPaymentFilterProvider);
+  final all = await ref
       .watch(orderRepositoryProvider)
       .fetchAdminOrders(statusFilter: statusFilter);
+  if (paymentFilter == null) return all;
+  return all.where((o) => o.paymentStatus == paymentFilter).toList();
+});
+
+final verificationQueueProvider = FutureProvider<List<Order>>((ref) async {
+  ref.watch(dataRefreshTriggerProvider);
+  return ref.watch(orderRepositoryProvider).fetchVerificationQueue();
 });
 
 final adminOrderByIdProvider =

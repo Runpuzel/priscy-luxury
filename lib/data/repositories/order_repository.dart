@@ -43,6 +43,7 @@ class OrderRepository {
         'landmark': request.landmark,
         'notes': request.notes,
         'callback_base_url': Uri.base.origin,
+        'payment_method': request.paymentMethod.dbValue,
       },
     );
 
@@ -59,7 +60,131 @@ class OrderRepository {
       authorizationUrl: data['authorization_url']?.toString() ?? '',
       total: (data['total'] as num?)?.toDouble() ?? 0,
       isDemoCheckout: false,
+      paymentMethod: PaymentMethod.fromString(data['payment_method']?.toString()),
     );
+  }
+
+  /// Customer submits manual MoMo payment proof for seller verification.
+  Future<void> submitManualPaymentProof({
+    required String orderId,
+    String? orderNumber,
+    String? trackingToken,
+    String? phone,
+    required String txnId,
+    required String senderName,
+    required String senderPhone,
+    String? screenshotUrl,
+  }) async {
+    if (AppConfig.isDemoMode) {
+      final idx = _demoDb.orders.indexWhere((o) => o.id == orderId);
+      if (idx == -1) throw StateError('Order not found');
+      final order = _demoDb.orders[idx];
+      _demoDb.orders[idx] = order.copyWith(
+        paymentStatus: PaymentStatus.awaitingVerification,
+        manualTxnId: txnId.trim(),
+        manualSenderName: senderName.trim(),
+        manualSenderPhone: senderPhone.trim(),
+        manualScreenshotUrl: screenshotUrl,
+        manualSubmittedAt: DateTime.now(),
+        events: [
+          ...order.events,
+          OrderEvent(
+            id: _demoDb.nextId('ev'),
+            orderId: order.id,
+            status: OrderStatus.pendingPayment,
+            note:
+                'Customer submitted manual MoMo proof (Txn: ${txnId.trim()}) — awaiting seller verification',
+            createdAt: DateTime.now(),
+          ),
+        ],
+      );
+      await _demoDb.saveOrders();
+      return;
+    }
+
+    final response = await _supabase.functions.invoke(
+      'submit-payment-proof',
+      body: {
+        'order_id': orderId,
+        if (orderNumber != null) 'order_number': orderNumber,
+        if (trackingToken != null) 'tracking_token': trackingToken,
+        if (phone != null) 'phone': phone,
+        'txn_id': txnId.trim(),
+        'sender_name': senderName.trim(),
+        'sender_phone': senderPhone.trim(),
+        if (screenshotUrl != null && screenshotUrl.trim().isNotEmpty)
+          'screenshot_url': screenshotUrl!.trim(),
+      },
+    );
+    final data = response.data as Map<String, dynamic>?;
+    if (response.status >= 400 || data?['error'] != null) {
+      throw Exception(data?['error'] ?? 'Could not submit payment proof');
+    }
+  }
+
+  /// Seller (admin) approves or rejects a manual payment proof.
+  Future<String?> verifyManualPayment({
+    required String orderId,
+    required bool approve,
+    String? rejectionReason,
+  }) async {
+    if (AppConfig.isDemoMode) {
+      final idx = _demoDb.orders.indexWhere((o) => o.id == orderId);
+      if (idx == -1) throw StateError('Order not found');
+      final order = _demoDb.orders[idx];
+      if (approve) {
+        await confirmDemoPayment(order.paystackReference ?? '');
+        final updated = _demoDb.orders[idx];
+        return WhatsAppHelper.buildAdminOrderStatusUpdateUrl(order: updated);
+      }
+      _demoDb.orders[idx] = order.copyWith(
+        paymentStatus: PaymentStatus.unpaid,
+        manualRejectionReason:
+            rejectionReason?.trim().isNotEmpty == true ? rejectionReason!.trim() : 'Payment could not be verified.',
+        events: [
+          ...order.events,
+          OrderEvent(
+            id: _demoDb.nextId('ev'),
+            orderId: order.id,
+            status: OrderStatus.pendingPayment,
+            note: 'Seller rejected manual payment proof',
+            createdAt: DateTime.now(),
+          ),
+        ],
+      );
+      await _demoDb.saveOrders();
+      return WhatsAppHelper.buildAdminOrderStatusUpdateUrl(
+          order: _demoDb.orders[idx]);
+    }
+
+    final response = await _supabase.functions.invoke(
+      'verify-manual-payment',
+      body: {
+        'order_id': orderId,
+        'approve': approve,
+        if (rejectionReason != null) 'rejection_reason': rejectionReason,
+      },
+    );
+    final data = response.data as Map<String, dynamic>?;
+    if (response.status >= 400 || data?['error'] != null) {
+      throw Exception(data?['error'] ?? 'Could not verify payment');
+    }
+    return data?['whatsapp_url']?.toString();
+  }
+
+  /// Orders awaiting seller verification (admin queue).
+  Future<List<Order>> fetchVerificationQueue() async {
+    if (AppConfig.isDemoMode) {
+      return _demoDb.orders
+          .where((o) => o.paymentStatus == PaymentStatus.awaitingVerification)
+          .toList();
+    }
+    final rows = await _supabase
+        .from('orders')
+        .select('*, order_items(*), order_events(*)')
+        .eq('payment_status', 'awaiting_verification')
+        .order('manual_submitted_at', ascending: false);
+    return rows.map(Order.fromJson).toList();
   }
 
   /// Admin manual WhatsApp order creation (`create-manual-order` Edge Function).
@@ -235,9 +360,11 @@ class OrderRepository {
       total: total,
       status: OrderStatus.pendingPayment,
       paymentStatus: PaymentStatus.unpaid,
+      paymentMethod: request.paymentMethod,
       paystackReference: reference,
-      reservedUntil:
-          now.add(const Duration(minutes: AppConfig.reservationMinutes)),
+      reservedUntil: request.paymentMethod == PaymentMethod.manualMomo
+          ? now.add(const Duration(hours: AppConfig.manualReservationHours))
+          : now.add(const Duration(minutes: AppConfig.reservationMinutes)),
       createdAt: now,
       items: orderItems,
       events: [
@@ -245,7 +372,9 @@ class OrderRepository {
           id: _demoDb.nextId('ev'),
           orderId: orderId,
           status: OrderStatus.pendingPayment,
-          note: 'Order created ($channel) — stock reserved for 15 minutes',
+          note: request.paymentMethod == PaymentMethod.manualMomo
+              ? 'Order created ($channel) — manual MoMo payment, stock reserved for 24 hours'
+              : 'Order created ($channel) — stock reserved for 15 minutes',
           createdAt: now,
         ),
       ],
@@ -255,8 +384,9 @@ class OrderRepository {
     await _demoDb.saveProducts();
     await _demoDb.saveOrders();
 
-    final demoPayUrl =
-        '/checkout/paystack-demo?ref=${Uri.encodeComponent(reference)}&order=${Uri.encodeComponent(orderNumber)}&token=${Uri.encodeComponent(trackingToken)}';
+    final demoPayUrl = request.paymentMethod == PaymentMethod.manualMomo
+        ? '/checkout/manual-payment?order=${Uri.encodeComponent(orderNumber)}&token=${Uri.encodeComponent(trackingToken)}&id=${Uri.encodeComponent(orderId)}'
+        : '/checkout/paystack-demo?ref=${Uri.encodeComponent(reference)}&order=${Uri.encodeComponent(orderNumber)}&token=${Uri.encodeComponent(trackingToken)}';
 
     return CreateOrderResult(
       orderId: orderId,
@@ -266,6 +396,7 @@ class OrderRepository {
       authorizationUrl: demoPayUrl,
       total: total,
       isDemoCheckout: true,
+      paymentMethod: request.paymentMethod,
     );
   }
 

@@ -14,6 +14,16 @@ class AppConfig {
   static const String supportPhoneLocal = '0550571248';
   static const String whatsappDigits = '233550571248';
   static const String supportEmail = 'adupriscytwum@gmail.com';
+
+  /// Manual MoMo payment details (customer pays seller directly, seller verifies in app).
+  static const String manualMomoNumber = '0550571248';
+  static const String manualMomoName = 'Priscilla Adutwum';
+  static const List<String> manualMomoNetworks = [
+    'MTN MoMo',
+    'Telecel Cash',
+    'AT Money',
+  ];
+  static const int manualReservationHours = 24;
   static const String currencyCode = 'GHS';
   static const String currencySymbol = 'GH₵';
   static const int defaultLowStockThreshold = 3;

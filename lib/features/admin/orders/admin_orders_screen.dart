@@ -30,7 +30,9 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
   @override
   Widget build(BuildContext context) {
     final activeStatus = ref.watch(adminOrdersFilterProvider);
+    final activePayment = ref.watch(adminOrdersPaymentFilterProvider);
     final ordersAsync = ref.watch(adminOrdersProvider);
+    final queueAsync = ref.watch(verificationQueueProvider);
 
     return AdminScaffold(
       title: 'Orders Management',
@@ -45,6 +47,51 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Manual MoMo verification queue banner
+          queueAsync.when(
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+            data: (queue) {
+              if (queue.isEmpty) return const SizedBox.shrink();
+              return Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3E8FF),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFF6D28D9)),
+                ),
+                child: Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  runSpacing: 8,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.verified_outlined, color: Color(0xFF6D28D9)),
+                        const SizedBox(width: 10),
+                        Text(
+                          '${queue.length} manual MoMo payment${queue.length == 1 ? '' : 's'} awaiting your verification',
+                          style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF6D28D9)),
+                        ),
+                      ],
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        ref.read(adminOrdersPaymentFilterProvider.notifier).state =
+                            PaymentStatus.awaitingVerification;
+                        ref.read(adminOrdersFilterProvider.notifier).state = null;
+                      },
+                      icon: const Icon(Icons.visibility_outlined, size: 16),
+                      label: const Text('Review Queue'),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
           // Status filter chips + Date filter + Search
           Container(
             padding: const EdgeInsets.all(16),
@@ -71,9 +118,26 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
                       ChoiceChip(
                         label: Text(st.label),
                         selected: activeStatus == st,
-                        onSelected: (_) => ref
-                            .read(adminOrdersFilterProvider.notifier)
-                            .state = st,
+                        onSelected: (_) {
+                          ref.read(adminOrdersFilterProvider.notifier).state = st;
+                          ref.read(adminOrdersPaymentFilterProvider.notifier).state = null;
+                        },
+                      ),
+                    ChoiceChip(
+                      label: const Text('⏳ Awaiting Verification'),
+                      selected: activePayment == PaymentStatus.awaitingVerification,
+                      onSelected: (_) {
+                        ref.read(adminOrdersPaymentFilterProvider.notifier).state =
+                            PaymentStatus.awaitingVerification;
+                        ref.read(adminOrdersFilterProvider.notifier).state = null;
+                      },
+                    ),
+                    if (activePayment != null)
+                      ChoiceChip(
+                        label: const Text('✕ Clear payment filter'),
+                        selected: false,
+                        onSelected: (_) =>
+                            ref.read(adminOrdersPaymentFilterProvider.notifier).state = null,
                       ),
                   ],
                 ),

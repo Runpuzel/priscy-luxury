@@ -35,8 +35,25 @@ enum OrderStatus {
   }
 }
 
+enum PaymentMethod {
+  manualMomo('manual_momo', 'Manual MoMo (Pay then Verify)'),
+  paystack('paystack', 'Paystack Online');
+
+  const PaymentMethod(this.dbValue, this.label);
+  final String dbValue;
+  final String label;
+
+  static PaymentMethod fromString(String? raw) {
+    return PaymentMethod.values.firstWhere(
+      (e) => e.dbValue == raw,
+      orElse: () => PaymentMethod.manualMomo,
+    );
+  }
+}
+
 enum PaymentStatus {
   unpaid('unpaid', 'Unpaid'),
+  awaitingVerification('awaiting_verification', 'Awaiting Verification'),
   paid('paid', 'Paid'),
   failed('failed', 'Failed');
 

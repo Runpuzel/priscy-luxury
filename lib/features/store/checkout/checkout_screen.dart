@@ -30,6 +30,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   final _notesCtrl = TextEditingController();
 
   DeliveryMethod _deliveryMethod = DeliveryMethod.delivery;
+  PaymentMethod _paymentMethod = PaymentMethod.manualMomo;
   String? _selectedZoneId;
   bool _whatsappSameAsPhone = true;
   bool _acceptedPolicies = true;
@@ -117,6 +118,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             : 'Showroom Pickup',
         landmark: _landmarkCtrl.text.trim(),
         notes: _notesCtrl.text.trim(),
+        paymentMethod: _paymentMethod,
       );
 
       final result = await ref
@@ -125,12 +127,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
       ref.read(dataRefreshTriggerProvider.notifier).state++;
       if (!mounted) return;
+      ref.read(cartProvider.notifier).clearCart();
 
-      if (result.isDemoCheckout) {
+      if (result.isManualPayment) {
+        // Manual MoMo: go to pay + submit proof screen
+        context.go(
+          '/checkout/manual-payment?order=${Uri.encodeComponent(result.orderNumber)}&token=${Uri.encodeComponent(result.trackingToken)}&id=${Uri.encodeComponent(result.orderId)}',
+        );
+      } else if (result.isDemoCheckout) {
         context.go(result.authorizationUrl);
       } else {
         // Redirect browser to Paystack Hosted Checkout (Section 4 & 10)
-        ref.read(cartProvider.notifier).clearCart();
         await WhatsAppHelper.openUrl(result.authorizationUrl, sameTab: true);
       }
     } catch (e) {
@@ -561,6 +568,46 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             ],
           ),
           const SizedBox(height: 16),
+          Text(
+            'Payment Method',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: 8),
+          SegmentedButton<PaymentMethod>(
+            segments: const [
+              ButtonSegment(
+                value: PaymentMethod.manualMomo,
+                icon: Icon(Icons.phone_android_outlined, size: 16),
+                label: Text('Manual MoMo'),
+              ),
+              ButtonSegment(
+                value: PaymentMethod.paystack,
+                icon: Icon(Icons.credit_card_outlined, size: 16),
+                label: Text('Paystack Online'),
+              ),
+            ],
+            selected: {_paymentMethod},
+            onSelectionChanged: (s) =>
+                setState(() => _paymentMethod = s.first),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: _paymentMethod == PaymentMethod.manualMomo
+                  ? AppColors.sand
+                  : AppColors.surface,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Text(
+              _paymentMethod == PaymentMethod.manualMomo
+                  ? 'You will pay ${CurrencyFormatter.formatGhs(totals.total)} to MoMo 0550571248 (Priscilla Adutwum), then submit your Transaction ID. The seller verifies and confirms your order.'
+                  : 'You will be redirected to Paystack to pay securely with Mobile Money. Your order is confirmed automatically.',
+              style: const TextStyle(fontSize: 12.5),
+            ),
+          ),
+          const SizedBox(height: 12),
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,
             controlAffinity: ListTileControlAffinity.leading,
@@ -602,8 +649,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             icon: const Icon(Icons.phone_android_rounded, size: 19),
             label: Text(
               _submitting
-                  ? 'Reserving Stock & Connecting...'
-                  : 'Pay ${CurrencyFormatter.formatGhs(totals.total)} with Mobile Money',
+                  ? 'Reserving Stock...'
+                  : _paymentMethod == PaymentMethod.manualMomo
+                      ? 'Place Order — Pay ${CurrencyFormatter.formatGhs(totals.total)} via MoMo'
+                      : 'Pay ${CurrencyFormatter.formatGhs(totals.total)} with Paystack',
             ),
           ),
           const SizedBox(height: 10),

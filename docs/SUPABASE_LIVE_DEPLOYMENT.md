@@ -96,6 +96,15 @@ https://ggznhxnsfngzswxztnkk.supabase.co/functions/v1/paystack-webhook
 - Phone auth: enabled, SMS auto-confirm ON
 - JWT expiry: 3600s, refresh rotation ON
 
+## Manual MoMo Payment Flow (Live)
+
+- **Default checkout:** Manual MoMo to **0550571248 (Priscilla Adutwum)**
+- **Customer:** pays → submits Transaction ID at `/checkout/manual-payment` → sees *Awaiting Verification*
+- **Seller:** Admin → Orders → ⏳ Awaiting Verification → **Approve & Confirm** (or Reject) → customer gets WhatsApp update
+- **Functions:** `submit-payment-proof` (public) + `verify-manual-payment` (admin JWT) — both ACTIVE
+- **RPCs:** `submit_manual_payment_proof`, `verify_manual_payment`
+- **Reservation:** 24 hours for manual orders
+
 ## Next Steps for Priscilla
 
 1. **Add Paystack keys** (see above) — enables real Mobile Money checkout.
