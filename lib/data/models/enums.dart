@@ -36,8 +36,7 @@ enum OrderStatus {
 }
 
 enum PaymentMethod {
-  manualMomo('manual_momo', 'Manual MoMo (Pay then Verify)'),
-  paystack('paystack', 'Paystack Online');
+  manualMomo('manual_momo', 'Manual MoMo (Pay then Verify)');
 
   const PaymentMethod(this.dbValue, this.label);
   final String dbValue;

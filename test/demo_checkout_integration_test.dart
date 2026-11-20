@@ -7,7 +7,7 @@ import 'package:priscy_store/data/repositories/review_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  test('Full checkout, Paystack MoMo confirmation, guest tracking & verified review flow', () async {
+  test('Full checkout, manual MoMo verification, guest tracking & verified review flow', () async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     final demoDb = DemoDatabase(prefs);

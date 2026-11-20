@@ -4,7 +4,7 @@
 > **Slogan:** *"Premium quality, affordable prices, unbeatable style!"*  
 > **Contact / WhatsApp:** `0550571248` (`+233 55 057 1248`) • `adupriscytwum@gmail.com`
 
-A responsive **Flutter Web customer storefront** and **Flutter Web owner admin dashboard** sharing a single typed codebase, backed by **Supabase** (Postgres, Row Level Security, Auth, Storage, and Deno Edge Functions), **Manual MoMo payment (seller-verified) + optional Paystack (GHS)**, and **1-tap WhatsApp order & status workflows**.
+A responsive **Flutter Web customer storefront** and **Flutter Web owner admin dashboard** sharing a single typed codebase, backed by **Supabase** (Postgres, Row Level Security, Auth, Storage, and Deno Edge Functions), **Manual MoMo payment (seller-verified, GHS)**, and **1-tap WhatsApp order & status workflows**.
 
 ---
 
@@ -37,12 +37,11 @@ priscy-luxury/
 │   │   ├── 20261030000002_rls_and_storage.sql  # Strict RLS on every table + product-images bucket
 │   │   └── 20261030000003_seed_data.sql        # 3 categories, 20 styles, Ghana delivery zones & policy pages
 │   ├── functions/
-│   │   ├── create-order/           # Server-side price & stock check, 15-min reservation, Paystack init
-│   │   ├── paystack-webhook/       # HMAC-SHA512 signature check + API re-verify + atomic stock deduction
+│   │   ├── create-order/           # Registered-only order + 24h stock reservation (manual MoMo)
 │   │   ├── track-order/            # Rate-limited guest order lookup (order_number + phone or secret token)
 │   │   ├── submit-review/          # Rate-limited verified-buyer check + pending moderation insert
 │   │   ├── release-expired-reservations/ # Cron job releasing unpaid 15-min reservations every 5 min
-│   │   ├── create-manual-order/    # Admin-only manual WhatsApp order + Paystack payment link builder
+│   │   ├── create-manual-order/    # Admin-only manual WhatsApp order + MoMo instructions builder
 │   │   └── og-preview/             # Dynamic Open Graph social preview HTML for WhatsApp/Instagram links
 │   └── tests/
 │       └── rls_policies_test.sql   # SQL verification suite proving RLS isolation
@@ -58,13 +57,13 @@ priscy-luxury/
 
 Customers pay the seller directly, then submit proof for seller verification:
 
-1. **Checkout** — customer picks *Manual MoMo* (default) or *Paystack Online*
-2. **Pay** — customer sends exact total to **MoMo 0550571248 (Priscilla Adutwum)** with order number as reference
+1. **Register** — customer creates a free account (required before purchase)
+2. **Checkout & Pay** — customer checks out and sends exact total to **MoMo 0550571248 (Priscilla Adutwum)** with order number as reference
 3. **Submit proof** — customer enters Transaction ID + sender name/phone on `/checkout/manual-payment`
 4. **Seller verifies** — Priscilla opens **Admin → Orders → ⏳ Awaiting Verification**, checks MoMo, taps **✅ Approve & Confirm** (stock deducted, order confirmed) or **Reject** (customer re-submits)
 5. **WhatsApp** — customer auto-notified on approve/reject
 
-Manual orders reserve stock for **24 hours** (vs 15 min for Paystack). New Edge Functions: `submit-payment-proof` (public) + `verify-manual-payment` (admin-only). New RPCs: `submit_manual_payment_proof`, `verify_manual_payment`.
+Manual orders reserve stock for **24 hours**. Edge Functions: `submit-payment-proof` (public) + `verify-manual-payment` (admin-only). RPCs: `submit_manual_payment_proof`, `verify_manual_payment`.
 
 ---
 
@@ -73,7 +72,7 @@ Manual orders reserve stock for **24 hours** (vs 15 min for Paystack). New Edge 
 When `SUPABASE_URL` is omitted (or `DEMO_MODE=true`), the app automatically runs in **Interactive Demo Mode** backed by browser `localStorage` (`SharedPreferences`) pre-seeded with:
 - **20 luxury footwear styles** across *Flat Sandals*, *Slides & Slippers*, and *Leather Sandals* for Women, Men, and Children
 - **5 Ghana delivery zones** (Kumasi, Accra & Tema, Takoradi & Cape Coast, Koforidua & Ho, Rest of Ghana) + **Free Kumasi Pickup**
-- **Simulated Paystack Mobile Money checkout** (MTN MoMo, Telecel Cash, AT Money)
+- **Manual MoMo payment flow** (MTN MoMo, Telecel Cash, AT Money) with seller verification
 - **Sample trackable orders** (try Order `PSY-20261030-0001` + Phone `0244123456` on `/track`)
 - **Full Admin Portal** (pre-filled with owner demo login)
 
@@ -105,13 +104,11 @@ supabase db push
 ```
 
 ### Step 2: Edge Functions — All 7 Deployed & ACTIVE ✅
-`create-order`, `paystack-webhook`, `track-order`, `submit-review`, `release-expired-reservations`, `create-manual-order` (JWT-protected), `og-preview` — all deployed with inlined shared helpers.
+`create-order`, `track-order`, `submit-review`, `release-expired-reservations`, `create-manual-order` (JWT-protected), `submit-payment-proof`, `verify-manual-payment` (JWT-protected), `og-preview` — all deployed with inlined shared helpers.
 
-Secrets already set: `STORE_BASE_URL`, `CRON_SECRET`.  
-**Still needed from Paystack:** add `PAYSTACK_SECRET_KEY` in Supabase Dashboard → Edge Functions → Secrets, then set the Paystack webhook to:
-`https://ggznhxnsfngzswxztnkk.supabase.co/functions/v1/paystack-webhook`
+Secrets already set: `STORE_BASE_URL`, `CRON_SECRET`. No Paystack keys needed — payments are manual MoMo only.
 
-> **Security Rule:** `SUPABASE_SERVICE_ROLE_KEY` and `PAYSTACK_SECRET_KEY` live **only** in Supabase Edge Function secrets—never in the Flutter web app.
+> **Security Rule:** `SUPABASE_SERVICE_ROLE_KEY` lives **only** in Supabase Edge Function secrets—never in the Flutter web app.
 
 ### Step 3: Promote the First Owner Admin Account
 Sign up with Priscilla's email once, then run in the Supabase SQL Editor:
@@ -122,7 +119,7 @@ where id = (select id from auth.users where email = 'adupriscytwum@gmail.com');
 ```
 
 ### Step 4: Configure `.env` & Build for Production
-`.env.example` is pre-filled with the live project (`SUPABASE_URL=https://ggznhxnsfngzswxztnkk.supabase.co`, publishable anon key). Copy to `.env`, set `DEMO_MODE=false`, and add your `PAYSTACK_PUBLIC_KEY`:
+`.env.example` is pre-filled with the live project (`SUPABASE_URL=https://ggznhxnsfngzswxztnkk.supabase.co`, publishable anon key). Copy to `.env` and set `DEMO_MODE=false`:
 
 ```bash
 # Build Customer Storefront -> deploy build/store to priscyluxury.com

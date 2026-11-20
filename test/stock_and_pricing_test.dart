@@ -107,7 +107,7 @@ void main() {
       );
     });
 
-    test('deducts physical stock and clears reservation on Paystack confirmation', () {
+    test('deducts physical stock and clears reservation on seller verification', () {
       final reserved = StockAndPricingCalculator.reserveStock(initialVariant, 1);
       final confirmed =
           StockAndPricingCalculator.confirmReservedSale(reserved, 1);

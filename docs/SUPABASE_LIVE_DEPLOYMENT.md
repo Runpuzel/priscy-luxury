@@ -23,7 +23,6 @@
 DEMO_MODE=false
 SUPABASE_URL=https://ggznhxnsfngzswxztnkk.supabase.co
 SUPABASE_ANON_KEY=sb_publishable_jogr_yVYxPcFD6gvmEz2fQ_iCmumPdJ
-PAYSTACK_PUBLIC_KEY=pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 STORE_BASE_URL=https://priscyluxury.com
 ADMIN_BASE_URL=https://admin.priscyluxury.com
 ```
@@ -58,8 +57,7 @@ ADMIN_BASE_URL=https://admin.priscyluxury.com
 
 | Function | Slug | Verify JWT | Purpose |
 |----------|------|------------|---------|
-| `create-order` | `create-order` | No | Atomic stock reservation + Paystack init |
-| `paystack-webhook` | `paystack-webhook` | No | HMAC-SHA512 verify + confirm |
+| `create-order` | `create-order` | No | Registered-only order + 24h reservation (manual MoMo) |
 | `track-order` | `track-order` | No | Guest tracking (order + phone / token) |
 | `submit-review` | `submit-review` | No | Verified-buyer reviews |
 | `release-expired-reservations` | `release-expired-reservations` | No | Cron cleanup (CRON_SECRET protected) |
@@ -73,20 +71,9 @@ All functions were deployed with **inlined `_shared` helpers** (single-file bund
 - `STORE_BASE_URL=https://priscyluxury.com`
 - `CRON_SECRET=priscy-cron-2026-secure`
 
-### Secrets Still Needed (from Priscilla / Paystack)
+### Payments — Manual MoMo Only (No Paystack)
 
-Add these in **Supabase Dashboard → Edge Functions → Secrets** (or ask the agent to set them):
-
-```bash
-PAYSTACK_SECRET_KEY=sk_live_xxxxxxxxxxxx   # from Paystack Dashboard → Settings → API Keys
-PAYSTACK_PUBLIC_KEY=pk_live_xxxxxxxxxxxx   # also put in Flutter .env
-```
-
-Then in **Paystack Dashboard → Settings → Webhooks**, add:
-
-```
-https://ggznhxnsfngzswxztnkk.supabase.co/functions/v1/paystack-webhook
-```
+Paystack has been fully removed. Customers pay **MoMo 0550571248 (Priscilla Adutwum)** directly, submit their Transaction ID, and the seller verifies in the Admin app. No gateway keys or webhooks needed.
 
 ## Auth Configuration
 
@@ -107,8 +94,7 @@ https://ggznhxnsfngzswxztnkk.supabase.co/functions/v1/paystack-webhook
 
 ## Next Steps for Priscilla
 
-1. **Add Paystack keys** (see above) — enables real Mobile Money checkout.
-2. **Create admin account:** Sign up at `/account` with `adupriscytwum@gmail.com`, then run in SQL Editor:
+1. **Admin account is ready:** `adupriscytwum@gmail.com` (temp password `PriscyAdmin2026!` — change it immediately). Sign in at the Admin dashboard.
    ```sql
    update public.profiles set role = 'admin'
    where id = (select id from auth.users where email = 'adupriscytwum@gmail.com');

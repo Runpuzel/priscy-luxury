@@ -30,7 +30,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   final _notesCtrl = TextEditingController();
 
   DeliveryMethod _deliveryMethod = DeliveryMethod.delivery;
-  PaymentMethod _paymentMethod = PaymentMethod.manualMomo;
   String? _selectedZoneId;
   bool _whatsappSameAsPhone = true;
   bool _acceptedPolicies = true;
@@ -76,9 +75,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       return;
     }
 
+    final customer = ref.read(customerAuthProvider).valueOrNull;
+    if (customer == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please register or sign in before making a purchase.'),
+        ),
+      );
+      context.go('/account?return=/checkout');
+      return;
+    }
+
     setState(() => _submitting = true);
     try {
-      final customer = ref.read(customerAuthProvider).valueOrNull;
       DeliveryZone? chosenZone;
       for (final z in zones) {
         if (z.id == _selectedZoneId) {
@@ -118,7 +128,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             : 'Showroom Pickup',
         landmark: _landmarkCtrl.text.trim(),
         notes: _notesCtrl.text.trim(),
-        paymentMethod: _paymentMethod,
       );
 
       final result = await ref
@@ -129,17 +138,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       if (!mounted) return;
       ref.read(cartProvider.notifier).clearCart();
 
-      if (result.isManualPayment) {
-        // Manual MoMo: go to pay + submit proof screen
-        context.go(
-          '/checkout/manual-payment?order=${Uri.encodeComponent(result.orderNumber)}&token=${Uri.encodeComponent(result.trackingToken)}&id=${Uri.encodeComponent(result.orderId)}',
-        );
-      } else if (result.isDemoCheckout) {
-        context.go(result.authorizationUrl);
-      } else {
-        // Redirect browser to Paystack Hosted Checkout (Section 4 & 10)
-        await WhatsAppHelper.openUrl(result.authorizationUrl, sameTab: true);
-      }
+      // Manual MoMo: go to pay + submit proof screen
+      context.go(
+        '/checkout/manual-payment?order=${Uri.encodeComponent(result.orderNumber)}&token=${Uri.encodeComponent(result.trackingToken)}&id=${Uri.encodeComponent(result.orderId)}',
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -180,6 +182,59 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       deliveryMethod: _deliveryMethod,
       selectedZone: activeZone,
     );
+
+    if (customer == null) {
+      return StoreScaffold(
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Container(
+                padding: const EdgeInsets.all(28),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.lock_outline_rounded, size: 48, color: AppColors.espresso),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Registration Required to Purchase',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'To keep your order safe and trackable, please create a free account or sign in first. It takes less than a minute.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppColors.mutedText),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => context.go('/account?return=/checkout'),
+                        icon: const Icon(Icons.person_add_outlined, size: 18),
+                        label: const Text('Register / Sign In to Continue'),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextButton(
+                      onPressed: () => context.go('/cart'),
+                      child: const Text('Back to Cart'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     if (cartItems.isEmpty) {
       return StoreScaffold(
@@ -222,10 +277,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       ),
                       if (customer == null)
                         TextButton.icon(
-                          onPressed: () => context.go('/account'),
-                          icon: const Icon(Icons.person_outline_rounded, size: 18),
+                          onPressed: () => context.go('/account?return=/checkout'),
+                          icon: const Icon(Icons.person_add_outlined, size: 18),
                           label: const Text(
-                            'Have an account? Sign in (or continue as Guest)',
+                            'Register / Sign In to Purchase',
                           ),
                         ),
                     ],
@@ -568,46 +623,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          Text(
-            'Payment Method',
-            style: Theme.of(context).textTheme.titleSmall,
-          ),
-          const SizedBox(height: 8),
-          SegmentedButton<PaymentMethod>(
-            segments: const [
-              ButtonSegment(
-                value: PaymentMethod.manualMomo,
-                icon: Icon(Icons.phone_android_outlined, size: 16),
-                label: Text('Manual MoMo'),
-              ),
-              ButtonSegment(
-                value: PaymentMethod.paystack,
-                icon: Icon(Icons.credit_card_outlined, size: 16),
-                label: Text('Paystack Online'),
-              ),
-            ],
-            selected: {_paymentMethod},
-            onSelectionChanged: (s) =>
-                setState(() => _paymentMethod = s.first),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: _paymentMethod == PaymentMethod.manualMomo
-                  ? AppColors.sand
-                  : AppColors.surface,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Text(
-              _paymentMethod == PaymentMethod.manualMomo
-                  ? 'You will pay ${CurrencyFormatter.formatGhs(totals.total)} to MoMo 0550571248 (Priscilla Adutwum), then submit your Transaction ID. The seller verifies and confirms your order.'
-                  : 'You will be redirected to Paystack to pay securely with Mobile Money. Your order is confirmed automatically.',
-              style: const TextStyle(fontSize: 12.5),
-            ),
-          ),
-          const SizedBox(height: 12),
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,
             controlAffinity: ListTileControlAffinity.leading,
@@ -650,9 +665,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             label: Text(
               _submitting
                   ? 'Reserving Stock...'
-                  : _paymentMethod == PaymentMethod.manualMomo
-                      ? 'Place Order — Pay ${CurrencyFormatter.formatGhs(totals.total)} via MoMo'
-                      : 'Pay ${CurrencyFormatter.formatGhs(totals.total)} with Paystack',
+                  : 'Place Order — Pay ${CurrencyFormatter.formatGhs(totals.total)} via MoMo',
             ),
           ),
           const SizedBox(height: 10),

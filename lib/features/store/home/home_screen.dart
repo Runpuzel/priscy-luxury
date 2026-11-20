@@ -270,7 +270,7 @@ class _TrustBadgesStrip extends StatelessWidget {
       (
         Icons.phone_android_rounded,
         'Mobile Money Checkout',
-        'MTN MoMo, Telecel Cash & AT Money via Paystack'
+        'MTN MoMo, Telecel Cash & AT Money — Seller Verified'
       ),
       (
         Icons.local_shipping_outlined,

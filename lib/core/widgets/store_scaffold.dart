@@ -466,7 +466,7 @@ class _StoreFooter extends StatelessWidget {
                     style: TextStyle(color: Color(0xFFB5A495), fontSize: 12),
                   ),
                   const Text(
-                    'Secured by Paystack Mobile Money (MTN MoMo • Telecel Cash • AT Money)',
+                    'Secure Manual MoMo Payment (MTN MoMo • Telecel Cash • AT Money) — Verified by Seller',
                     style: TextStyle(color: AppColors.gold, fontSize: 12),
                   ),
                 ],

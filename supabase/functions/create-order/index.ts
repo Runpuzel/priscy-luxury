@@ -20,9 +20,10 @@ interface CreateOrderPayload {
   landmark?: string | null;
   notes?: string | null;
   callback_base_url?: string;
-  payment_method?: 'paystack' | 'manual_momo';
 }
 
+// Manual MoMo only: registered customers create orders, pay seller directly,
+// submit Transaction ID, seller verifies in Admin app. Stock reserved 24h.
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -40,11 +41,15 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: 'Customer name and Mobile Money phone are required' }, 400);
     }
 
-    const paymentMethod = payload.payment_method === 'paystack' ? 'paystack' : 'manual_momo';
     const supabase = createServiceClient();
     const userId = await getAuthenticatedUserId(req);
+    if (!userId) {
+      return jsonResponse(
+        { error: 'You must register or sign in before making a purchase. Please create an account first.' },
+        401,
+      );
+    }
 
-    // 1. Atomically validate DB prices, validate stock, reserve for 15 min & create order
     const { data: rpcResult, error: rpcError } = await supabase.rpc(
       'create_order_with_reservation',
       {
@@ -75,90 +80,24 @@ Deno.serve(async (req: Request) => {
     const orderNumber = rpcResult.order_number as string;
     const trackingToken = rpcResult.tracking_token as string;
     const totalGhs = Number(rpcResult.total);
-    const amountPesewas = Math.round(totalGhs * 100);
-
     const reference = `${orderNumber}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
     const baseUrl =
       payload.callback_base_url ||
       Deno.env.get('STORE_BASE_URL') ||
       'https://priscyluxury.com';
-    const callbackUrl = `${baseUrl.replace(/\/$/, '')}/order/confirmation?ref=${encodeURIComponent(reference)}&order=${encodeURIComponent(orderNumber)}&token=${encodeURIComponent(trackingToken)}`;
 
-    // Save Paystack reference before calling gateway
     await supabase
       .from('orders')
-      .update({ paystack_reference: reference, payment_method: paymentMethod })
+      .update({ paystack_reference: reference, payment_method: 'manual_momo' })
       .eq('id', orderId);
 
-    if (paymentMethod === 'manual_momo') {
-      await supabase.from('orders').update({ reserved_until: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() }).eq('id', orderId);
-      return jsonResponse({
-        payment_method: 'manual_momo',
-        reference,
-        order_id: orderId,
-        order_number: orderNumber,
-        tracking_token: trackingToken,
-        subtotal: Number(rpcResult.subtotal),
-        delivery_fee: Number(rpcResult.delivery_fee),
-        total: totalGhs,
-        manual_momo_number: '0550571248',
-        manual_momo_name: 'Priscilla Adutwum',
-        manual_momo_networks: ['MTN MoMo', 'Telecel Cash', 'AT Money'],
-        instructions: 'Pay the exact total to the MoMo number above, then submit your Transaction ID on the next screen for seller verification.',
-        tracking_url: `${baseUrl.replace(/\/$/, '')}/track?order=${encodeURIComponent(orderNumber)}&token=${encodeURIComponent(trackingToken)}`,
-      });
-    }
-
-    const paystackSecret = Deno.env.get('PAYSTACK_SECRET_KEY');
-    if (!paystackSecret) {
-      return jsonResponse({ error: 'Payment gateway is not configured' }, 503);
-    }
-
-    // Paystack requires an email field; synthesize a deterministic customer receipt email if guest omitted email
-    const cleanDigits = payload.customer_phone.replace(/[^0-9]/g, '');
-    const customerEmail =
-      payload.customer_email?.trim() || `momo.${cleanDigits}@orders.priscyluxury.com`;
-
-    // 2. Initialize Hosted Paystack Transaction (GHS, Mobile Money channel only)
-    const paystackRes = await fetch('https://api.paystack.co/transaction/initialize', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${paystackSecret}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email: customerEmail,
-        amount: amountPesewas,
-        currency: 'GHS',
-        reference,
-        channels: ['mobile_money'],
-        callback_url: callbackUrl,
-        metadata: {
-          order_id: orderId,
-          order_number: orderNumber,
-          customer_name: payload.customer_name,
-          customer_phone: payload.customer_phone,
-        },
-      }),
-    });
-
-    const paystackJson = await paystackRes.json();
-    if (!paystackRes.ok || !paystackJson?.status) {
-      // Roll back stock reservation if Paystack failed to initialize
-      await supabase.rpc('cancel_order_and_release_stock', {
-        p_order_id: orderId,
-        p_reason: 'paystack_init_failed',
-      });
-      return jsonResponse(
-        { error: paystackJson?.message ?? 'Could not initialize Mobile Money checkout' },
-        502,
-      );
-    }
+    await supabase
+      .from('orders')
+      .update({ reserved_until: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() })
+      .eq('id', orderId);
 
     return jsonResponse({
-      payment_method: 'paystack',
-      authorization_url: paystackJson.data.authorization_url,
-      access_code: paystackJson.data.access_code,
+      payment_method: 'manual_momo',
       reference,
       order_id: orderId,
       order_number: orderNumber,
@@ -166,6 +105,11 @@ Deno.serve(async (req: Request) => {
       subtotal: Number(rpcResult.subtotal),
       delivery_fee: Number(rpcResult.delivery_fee),
       total: totalGhs,
+      manual_momo_number: '0550571248',
+      manual_momo_name: 'Priscilla Adutwum',
+      manual_momo_networks: ['MTN MoMo', 'Telecel Cash', 'AT Money'],
+      instructions: 'Pay the exact total to the MoMo number above, then submit your Transaction ID on the next screen for seller verification.',
+      tracking_url: `${baseUrl.replace(/\/$/, '')}/track?order=${encodeURIComponent(orderNumber)}&token=${encodeURIComponent(trackingToken)}`,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal server error';

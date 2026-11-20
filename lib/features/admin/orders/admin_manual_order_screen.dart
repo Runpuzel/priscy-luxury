@@ -12,7 +12,7 @@ import '../../../data/providers.dart';
 
 /// Section 6.2 & Section 10:
 /// Build a manual order from a WhatsApp conversation, reserve stock,
-/// and generate a Paystack Mobile Money link + 1-tap WhatsApp message.
+/// and generate manual MoMo payment instructions + 1-tap WhatsApp message.
 class AdminManualOrderScreen extends ConsumerStatefulWidget {
   const AdminManualOrderScreen({super.key});
 
@@ -397,7 +397,7 @@ class _AdminManualOrderScreenState
                       style: TextStyle(fontSize: 13.5),
                     ),
                     subtitle: const Text(
-                      'Leave off to reserve stock for 15 minutes and send a Paystack payment link.',
+                      'Leave off to reserve stock for 24 hours and send manual MoMo payment instructions.',
                       style: TextStyle(fontSize: 12),
                     ),
                     onChanged: (v) =>

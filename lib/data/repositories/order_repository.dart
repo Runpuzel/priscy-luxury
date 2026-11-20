@@ -19,6 +19,10 @@ class OrderRepository {
     CheckoutRequest request, {
     String? userId,
   }) async {
+    if (userId == null || userId.trim().isEmpty) {
+      throw StateError(
+          'Please register or sign in before making a purchase.');
+    }
     if (AppConfig.isDemoMode) {
       return _createDemoOrder(
         request,
@@ -43,7 +47,6 @@ class OrderRepository {
         'landmark': request.landmark,
         'notes': request.notes,
         'callback_base_url': Uri.base.origin,
-        'payment_method': request.paymentMethod.dbValue,
       },
     );
 
@@ -57,7 +60,7 @@ class OrderRepository {
       orderNumber: data['order_number']?.toString() ?? '',
       trackingToken: data['tracking_token']?.toString() ?? '',
       reference: data['reference']?.toString() ?? '',
-      authorizationUrl: data['authorization_url']?.toString() ?? '',
+      authorizationUrl: '',
       total: (data['total'] as num?)?.toDouble() ?? 0,
       isDemoCheckout: false,
       paymentMethod: PaymentMethod.fromString(data['payment_method']?.toString()),
@@ -360,11 +363,10 @@ class OrderRepository {
       total: total,
       status: OrderStatus.pendingPayment,
       paymentStatus: PaymentStatus.unpaid,
-      paymentMethod: request.paymentMethod,
+      paymentMethod: PaymentMethod.manualMomo,
       paystackReference: reference,
-      reservedUntil: request.paymentMethod == PaymentMethod.manualMomo
-          ? now.add(const Duration(hours: AppConfig.manualReservationHours))
-          : now.add(const Duration(minutes: AppConfig.reservationMinutes)),
+      reservedUntil:
+          now.add(const Duration(hours: AppConfig.manualReservationHours)),
       createdAt: now,
       items: orderItems,
       events: [
@@ -372,9 +374,8 @@ class OrderRepository {
           id: _demoDb.nextId('ev'),
           orderId: orderId,
           status: OrderStatus.pendingPayment,
-          note: request.paymentMethod == PaymentMethod.manualMomo
-              ? 'Order created ($channel) — manual MoMo payment, stock reserved for 24 hours'
-              : 'Order created ($channel) — stock reserved for 15 minutes',
+          note:
+              'Order created ($channel) — manual MoMo payment, stock reserved for 24 hours',
           createdAt: now,
         ),
       ],
@@ -384,9 +385,8 @@ class OrderRepository {
     await _demoDb.saveProducts();
     await _demoDb.saveOrders();
 
-    final demoPayUrl = request.paymentMethod == PaymentMethod.manualMomo
-        ? '/checkout/manual-payment?order=${Uri.encodeComponent(orderNumber)}&token=${Uri.encodeComponent(trackingToken)}&id=${Uri.encodeComponent(orderId)}'
-        : '/checkout/paystack-demo?ref=${Uri.encodeComponent(reference)}&order=${Uri.encodeComponent(orderNumber)}&token=${Uri.encodeComponent(trackingToken)}';
+    final demoPayUrl =
+        '/checkout/manual-payment?order=${Uri.encodeComponent(orderNumber)}&token=${Uri.encodeComponent(trackingToken)}&id=${Uri.encodeComponent(orderId)}';
 
     return CreateOrderResult(
       orderId: orderId,
@@ -396,11 +396,11 @@ class OrderRepository {
       authorizationUrl: demoPayUrl,
       total: total,
       isDemoCheckout: true,
-      paymentMethod: request.paymentMethod,
+      paymentMethod: PaymentMethod.manualMomo,
     );
   }
 
-  /// Simulates the Paystack `charge.success` webhook in Demo Mode:
+  /// Simulates seller verification in Demo Mode:
   /// confirms payment, deducts physical stock, releases reservation, and logs `stock_movements`.
   Future<Order> confirmDemoPayment(String reference) async {
     final idx =
@@ -457,7 +457,7 @@ class OrderRepository {
           id: _demoDb.nextId('ev'),
           orderId: order.id,
           status: OrderStatus.confirmed,
-          note: 'Mobile Money payment confirmed via Paystack',
+          note: 'Manual MoMo payment verified by seller',
           createdAt: DateTime.now(),
         ),
       ],

@@ -11,7 +11,10 @@ import '../../../data/models/models.dart';
 import '../../../data/providers.dart';
 
 class AccountScreen extends ConsumerStatefulWidget {
-  const AccountScreen({super.key});
+  const AccountScreen({super.key, this.returnTo});
+
+  /// Where to go after successful sign-in/registration (e.g. /checkout).
+  final String? returnTo;
 
   @override
   ConsumerState<AccountScreen> createState() => _AccountScreenState();
@@ -64,6 +67,12 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
               data: (customer) {
                 if (customer == null) {
                   return _buildGuestAuthCard(context);
+                }
+                final returnTo = widget.returnTo;
+                if (returnTo != null && returnTo.isNotEmpty) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) context.go(returnTo);
+                  });
                 }
                 return _SignedInAccountView(customer: customer);
               },

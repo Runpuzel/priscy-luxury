@@ -7,7 +7,6 @@ import '../../features/store/catalogue/catalogue_screen.dart';
 import '../../features/store/checkout/checkout_screen.dart';
 import '../../features/store/checkout/manual_payment_screen.dart';
 import '../../features/store/checkout/order_confirmation_screen.dart';
-import '../../features/store/checkout/paystack_demo_screen.dart';
 import '../../features/store/home/home_screen.dart';
 import '../../features/store/pages/holding_launch_screen.dart';
 import '../../features/store/pages/static_page_screen.dart';
@@ -67,17 +66,6 @@ final storeRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: '/checkout/paystack-demo',
-        builder: (context, state) {
-          final qp = state.uri.queryParameters;
-          return PaystackDemoScreen(
-            reference: qp['ref'] ?? '',
-            orderNumber: qp['order'] ?? '',
-            trackingToken: qp['token'] ?? '',
-          );
-        },
-      ),
-      GoRoute(
         path: '/order/confirmation',
         builder: (context, state) {
           final qp = state.uri.queryParameters;
@@ -100,7 +88,9 @@ final storeRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/account',
-        builder: (context, state) => const AccountScreen(),
+        builder: (context, state) => AccountScreen(
+          returnTo: state.uri.queryParameters['return'],
+        ),
       ),
       GoRoute(
         path: '/pages/:slug',

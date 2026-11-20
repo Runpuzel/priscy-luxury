@@ -20,6 +20,7 @@ interface ManualOrderPayload {
   mark_paid_immediately?: boolean;
 }
 
+// Admin-only: create WhatsApp order with manual MoMo instructions.
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -34,7 +35,6 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'Authentication required' }, 401);
   }
 
-  // Verify caller has admin role in profiles
   const { data: profile } = await supabase
     .from('profiles')
     .select('role')
@@ -78,7 +78,12 @@ Deno.serve(async (req: Request) => {
 
     await supabase
       .from('orders')
-      .update({ paystack_reference: reference })
+      .update({ paystack_reference: reference, payment_method: 'manual_momo' })
+      .eq('id', orderId);
+
+    await supabase
+      .from('orders')
+      .update({ reserved_until: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() })
       .eq('id', orderId);
 
     const storeBase = (Deno.env.get('STORE_BASE_URL') || 'https://priscyluxury.com').replace(
@@ -86,32 +91,9 @@ Deno.serve(async (req: Request) => {
       '',
     );
     const trackingUrl = `${storeBase}/track?order=${encodeURIComponent(orderNumber)}&token=${encodeURIComponent(trackingToken)}`;
+    const proofUrl = `${storeBase}/checkout/manual-payment?order=${encodeURIComponent(orderNumber)}&token=${encodeURIComponent(trackingToken)}&id=${encodeURIComponent(orderId)}`;
 
-    let paymentUrl = trackingUrl;
-    const paystackSecret = Deno.env.get('PAYSTACK_SECRET_KEY');
-
-    if (paystackSecret && !payload.mark_paid_immediately) {
-      const cleanDigits = payload.customer_phone.replace(/[^0-9]/g, '');
-      const paystackRes = await fetch('https://api.paystack.co/transaction/initialize', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${paystackSecret}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: `momo.${cleanDigits}@orders.priscyluxury.com`,
-          amount: Math.round(totalGhs * 100),
-          currency: 'GHS',
-          reference,
-          channels: ['mobile_money'],
-          callback_url: `${storeBase}/order/confirmation?ref=${encodeURIComponent(reference)}&order=${encodeURIComponent(orderNumber)}&token=${encodeURIComponent(trackingToken)}`,
-        }),
-      });
-      const paystackJson = await paystackRes.json();
-      if (paystackRes.ok && paystackJson?.status) {
-        paymentUrl = paystackJson.data.authorization_url;
-      }
-    } else if (payload.mark_paid_immediately) {
+    if (payload.mark_paid_immediately) {
       await supabase.rpc('confirm_order', {
         p_reference: reference,
         p_amount_pesewas: Math.round(totalGhs * 100),
@@ -123,14 +105,14 @@ Deno.serve(async (req: Request) => {
     );
     const waText = payload.mark_paid_immediately
       ? `Hello ${payload.customer_name}, thank you for ordering from Priscy Luxury Slippers! Your order *${orderNumber}* (GHS ${totalGhs.toFixed(2)}) is confirmed. Track your delivery here: ${trackingUrl}`
-      : `Hello ${payload.customer_name}, thank you for choosing Priscy Luxury Slippers! Your order *${orderNumber}* total is *GHS ${totalGhs.toFixed(2)}*. Please complete Mobile Money payment within 15 minutes to confirm your pair: ${paymentUrl}`;
+      : `Hello ${payload.customer_name}, thank you for choosing Priscy Luxury Slippers! Your order *${orderNumber}* total is *GHS ${totalGhs.toFixed(2)}*. Please pay to MoMo *0550571248* (Priscilla Adutwum) and submit your Transaction ID here for verification: ${proofUrl}`;
 
     return jsonResponse({
       order_id: orderId,
       order_number: orderNumber,
       tracking_token: trackingToken,
       total: totalGhs,
-      payment_url: paymentUrl,
+      payment_url: proofUrl,
       tracking_url: trackingUrl,
       whatsapp_url: `https://wa.me/${customerWa}?text=${encodeURIComponent(waText)}`,
     });

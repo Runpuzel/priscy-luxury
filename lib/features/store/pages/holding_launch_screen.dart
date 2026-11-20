@@ -11,7 +11,7 @@ import '../../../data/providers.dart';
 
 /// Step 0 Quick Holding Page (Section 16):
 /// Brand showcase, 20-product gallery, and direct 1-tap WhatsApp order button
-/// ready for immediate 1 November 2026 launch while Paystack KYC completes.
+/// ready for immediate 1 November 2026 launch with manual MoMo verification.
 class HoldingLaunchScreen extends ConsumerWidget {
   const HoldingLaunchScreen({super.key});
 

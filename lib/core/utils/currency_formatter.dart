@@ -15,7 +15,7 @@ class CurrencyFormatter {
   /// Formats an amount in Ghana Cedis, e.g. `GHS 185.00`.
   static String formatGhs(num amount) => _ghsFormatter.format(amount);
 
-  /// Converts Ghana Cedis to Paystack pesewas (integer minor units).
+  /// Converts Ghana Cedis to pesewas (integer minor units).
   static int toPesewas(double ghsAmount) => (ghsAmount * 100).round();
 
   static String formatDate(DateTime date) => _shortDate.format(date.toLocal());

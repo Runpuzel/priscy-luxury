@@ -39,11 +39,6 @@ class AppConfig {
     defaultValue: '',
   );
 
-  static const String paystackPublicKey = String.fromEnvironment(
-    'PAYSTACK_PUBLIC_KEY',
-    defaultValue: '',
-  );
-
   static const String storeBaseUrl = String.fromEnvironment(
     'STORE_BASE_URL',
     defaultValue: 'https://priscyluxury.com',

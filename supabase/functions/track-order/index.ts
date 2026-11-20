@@ -26,24 +26,6 @@ Deno.serve(async (req: Request) => {
   try {
     const body = (await req.json()) as TrackOrderPayload;
 
-    // Optional: if customer just returned from Paystack redirect with ?ref=..., verify if still unpaid
-    if (body.reference) {
-      const paystackSecret = Deno.env.get('PAYSTACK_SECRET_KEY');
-      if (paystackSecret) {
-        const verifyRes = await fetch(
-          `https://api.paystack.co/transaction/verify/${encodeURIComponent(body.reference)}`,
-          { headers: { Authorization: `Bearer ${paystackSecret}` } },
-        );
-        const verifyJson = await verifyRes.json();
-        if (verifyRes.ok && verifyJson?.data?.status === 'success') {
-          await supabase.rpc('confirm_order', {
-            p_reference: body.reference,
-            p_amount_pesewas: Number(verifyJson.data.amount),
-          });
-        }
-      }
-    }
-
     let query = supabase
       .from('orders')
       .select(

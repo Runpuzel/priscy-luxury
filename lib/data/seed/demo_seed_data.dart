@@ -145,7 +145,7 @@ We want you to love the fit and feel of your Priscy Luxury Slippers.
 
 ### Data We Collect
 - Name, Mobile Money phone number, WhatsApp number, and delivery address solely to fulfil your order and send order status updates.
-- Mobile Money PINs and payment credentials are entered exclusively on **Paystack's encrypted checkout** and never touch our servers.
+- Mobile Money PINs are entered only in your own MoMo app. You share only the Transaction ID for seller verification — never your PIN.
 
 ### Data Deletion & Access
 To request a copy or deletion of your account information, email **adupriscytwum@gmail.com** or WhatsApp **0550571248**.''',
@@ -405,7 +405,7 @@ To request a copy or deletion of your account information, email **adupriscytwum
             id: 'oe-2',
             orderId: 'ord-demo-001',
             status: OrderStatus.confirmed,
-            note: 'Mobile Money payment verified via Paystack',
+            note: 'Manual MoMo payment verified by seller',
             createdAt: today.subtract(const Duration(hours: 2)),
           ),
         ],
@@ -518,7 +518,7 @@ To request a copy or deletion of your account information, email **adupriscytwum
             id: 'oe-5',
             orderId: 'ord-demo-003',
             status: OrderStatus.confirmed,
-            note: 'Manual WhatsApp order paid via Paystack link',
+            note: 'Manual WhatsApp order paid via MoMo (seller verified)',
             createdAt: today.subtract(const Duration(days: 2)),
           ),
           OrderEvent(

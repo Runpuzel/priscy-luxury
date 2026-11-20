@@ -230,7 +230,14 @@ class CartScreen extends ConsumerWidget {
                             ),
                             const Divider(height: 28),
                             ElevatedButton.icon(
-                              onPressed: () => context.go('/checkout'),
+                              onPressed: () {
+                                final customer = ref.watch(customerAuthProvider).valueOrNull;
+                                if (customer == null) {
+                                  context.go('/account?return=/checkout');
+                                } else {
+                                  context.go('/checkout');
+                                }
+                              },
                               icon: const Icon(Icons.lock_outline_rounded, size: 18),
                               label: const Text(
                                 'Proceed to Mobile Money Checkout',
