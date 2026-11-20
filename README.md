@@ -75,34 +75,29 @@ flutter run -d chrome -t lib/main_admin.dart
 
 ---
 
-## 3. Connecting Live Supabase & Paystack
+## 3. Live Supabase — Already Deployed ✅
 
-### Step 1: Apply Database Migrations & Seed Data
+> **Project:** `priscy-luxury supabase` (`ggznhxnsfngzswxztnkk`, eu-north-1)  
+> **Dashboard:** https://supabase.com/dashboard/project/ggznhxnsfngzswxztnkk  
+> **API:** https://ggznhxnsfngzswxztnkk.supabase.co  
+> **Status:** ACTIVE_HEALTHY with real data — 20 products, 270 variants, 5 delivery zones, 6 pages, 7 Edge Functions.  
+> Full details: [`docs/SUPABASE_LIVE_DEPLOYMENT.md`](docs/SUPABASE_LIVE_DEPLOYMENT.md)
+
+### Step 1: Database Migrations & Seed Data — DONE
+All 6 migrations were applied via the Supabase connector (schema → RLS → categories/zones → pages → products → images/variants/reviews). To re-apply locally:
 ```bash
-supabase link --project-ref <your-supabase-project-ref>
+supabase link --project-ref ggznhxnsfngzswxztnkk
 supabase db push
 ```
 
-### Step 2: Set Edge Function Secrets & Deploy Functions
+### Step 2: Edge Functions — All 7 Deployed & ACTIVE ✅
+`create-order`, `paystack-webhook`, `track-order`, `submit-review`, `release-expired-reservations`, `create-manual-order` (JWT-protected), `og-preview` — all deployed with inlined shared helpers.
+
+Secrets already set: `STORE_BASE_URL`, `CRON_SECRET`.  
+**Still needed from Paystack:** add `PAYSTACK_SECRET_KEY` in Supabase Dashboard → Edge Functions → Secrets, then set the Paystack webhook to:
+`https://ggznhxnsfngzswxztnkk.supabase.co/functions/v1/paystack-webhook`
+
 > **Security Rule:** `SUPABASE_SERVICE_ROLE_KEY` and `PAYSTACK_SECRET_KEY` live **only** in Supabase Edge Function secrets—never in the Flutter web app.
-
-```bash
-supabase secrets set \
-  PAYSTACK_SECRET_KEY=sk_live_xxxxxxxxxxxx \
-  STORE_BASE_URL=https://priscyluxury.com \
-  CRON_SECRET=choose-a-strong-random-secret
-
-supabase functions deploy create-order
-supabase functions deploy paystack-webhook
-supabase functions deploy track-order
-supabase functions deploy submit-review
-supabase functions deploy release-expired-reservations
-supabase functions deploy create-manual-order
-supabase functions deploy og-preview
-```
-
-Configure your Paystack Dashboard Webhook URL to:
-`https://<your-project-ref>.supabase.co/functions/v1/paystack-webhook`
 
 ### Step 3: Promote the First Owner Admin Account
 Sign up with Priscilla's email once, then run in the Supabase SQL Editor:
@@ -113,7 +108,7 @@ where id = (select id from auth.users where email = 'adupriscytwum@gmail.com');
 ```
 
 ### Step 4: Configure `.env` & Build for Production
-Copy `.env.example` to `.env`, set `DEMO_MODE=false`, and populate `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `PAYSTACK_PUBLIC_KEY`:
+`.env.example` is pre-filled with the live project (`SUPABASE_URL=https://ggznhxnsfngzswxztnkk.supabase.co`, publishable anon key). Copy to `.env`, set `DEMO_MODE=false`, and add your `PAYSTACK_PUBLIC_KEY`:
 
 ```bash
 # Build Customer Storefront -> deploy build/store to priscyluxury.com
