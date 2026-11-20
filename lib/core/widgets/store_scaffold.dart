@@ -85,11 +85,17 @@ class StoreScaffold extends ConsumerWidget {
                       path: '/track',
                     ),
                     _DrawerLink(
-                      icon: Icons.person_outline_rounded,
+                      icon: customer != null && customer.isAdmin
+                          ? Icons.admin_panel_settings_rounded
+                          : Icons.person_outline_rounded,
                       label: customer != null
-                          ? 'Account (${customer.fullName})'
+                          ? (customer.isAdmin
+                              ? 'Admin Dashboard'
+                              : 'Account (${customer.fullName})')
                           : 'Sign In / Account',
-                      path: '/account',
+                      path: customer != null && customer.isAdmin
+                          ? '/admin'
+                          : '/account',
                     ),
                     const Divider(),
                     _DrawerLink(
@@ -225,11 +231,44 @@ class StoreScaffold extends ConsumerWidget {
                             onPressed: () => _showSearchDialog(context),
                             icon: const Icon(Icons.search_rounded),
                           ),
+                          if (customer != null && customer.isAdmin)
+                            InkWell(
+                              onTap: () => context.go('/admin'),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.gold,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.admin_panel_settings_rounded, size: 14, color: AppColors.espresso),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'Admin',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppColors.espresso,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           IconButton(
                             tooltip: customer != null
-                                ? 'My Account'
+                                ? (customer.isAdmin ? 'Admin Dashboard' : 'My Account')
                                 : 'Sign In / Account',
-                            onPressed: () => context.go('/account'),
+                            onPressed: () => context.go(
+                              customer != null && customer.isAdmin
+                                  ? '/admin'
+                                  : '/account',
+                            ),
                             icon: Icon(
                               customer != null
                                   ? Icons.person_rounded

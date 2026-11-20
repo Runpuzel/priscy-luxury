@@ -283,6 +283,20 @@ class CustomerAuthNotifier extends AsyncNotifier<UserProfile?> {
     );
   }
 
+  Future<void> requestPhoneOtp(String ghanaPhone) async {
+    await ref.read(authRepositoryProvider).requestPhoneOtp(ghanaPhone);
+  }
+
+  Future<void> verifyPhoneOtp(String ghanaPhone, String otpCode) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => ref.read(authRepositoryProvider).verifyPhoneOtp(
+            ghanaPhone: ghanaPhone,
+            otpCode: otpCode,
+          ),
+    );
+  }
+
   Future<void> signOut() async {
     await ref.read(authRepositoryProvider).signOutCustomer();
     state = const AsyncData(null);
