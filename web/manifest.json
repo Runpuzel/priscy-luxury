@@ -1,0 +1,12 @@
+{
+  "name": "Priscy Luxury Slippers",
+  "short_name": "Priscy Luxury",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#FAF7F2",
+  "theme_color": "#3B2A20",
+  "description": "Premium quality, affordable prices, unbeatable style! Shop flat sandals, slides, and leather sandals across Ghana.",
+  "orientation": "portrait-primary",
+  "prefer_related_applications": false,
+  "icons": []
+}
