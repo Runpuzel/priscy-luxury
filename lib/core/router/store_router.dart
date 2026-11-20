@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/config/app_config.dart';
+import '../../core/utils/whatsapp_helper.dart';
 import '../../features/store/account/account_screen.dart';
 import '../../features/store/cart/cart_screen.dart';
 import '../../features/store/catalogue/catalogue_screen.dart';
@@ -84,6 +86,17 @@ final storeRouterProvider = Provider<GoRouter>((ref) {
             initialOrderNumber: qp['order'],
             initialToken: qp['token'],
           );
+        },
+      ),
+      GoRoute(
+        path: '/admin',
+        builder: (context, state) {
+          // Split storefront build: send admins to the admin site.
+          // (Unified build uses real /admin routes instead.)
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            WhatsAppHelper.openUrl(AppConfig.adminBaseUrl);
+          });
+          return const HomeScreen();
         },
       ),
       GoRoute(

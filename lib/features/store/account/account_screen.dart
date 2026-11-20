@@ -69,7 +69,11 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                   return _buildGuestAuthCard(context);
                 }
                 final returnTo = widget.returnTo;
-                if (returnTo != null && returnTo.isNotEmpty) {
+                if (customer.isAdmin) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) context.go('/admin');
+                  });
+                } else if (returnTo != null && returnTo.isNotEmpty) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     if (mounted) context.go(returnTo);
                   });

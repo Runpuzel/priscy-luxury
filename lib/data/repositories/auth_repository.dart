@@ -182,6 +182,15 @@ class AuthRepository {
         'Access denied: this account does not have the admin role.',
       );
     }
+    // Audit log: record admin sign-in (best-effort, never blocks login).
+    try {
+      await _supabase.rpc('log_admin_login', params: {
+        'p_ip': null,
+        'p_user_agent': 'Priscy Luxury Admin App',
+      });
+    } catch (_) {
+      // Ignore audit failures (e.g. RPC not yet deployed).
+    }
     return admin;
   }
 

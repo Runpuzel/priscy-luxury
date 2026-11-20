@@ -53,6 +53,17 @@ priscy-luxury/
 
 ---
 
+## Unified Login (One Door for Everyone)
+
+Customers AND the owner admin sign in at the **same place** (`/account`):
+- **Customer** → account page / checkout (return URL honored)
+- **Admin** → auto-redirected to **Admin Dashboard** (`/admin`)
+- **Admin accounts are developer-created only** — public registration always creates `customer` role (DB trigger blocks self-promotion)
+- Admin sign-ins are audit-logged (`admin_login_logs` + `log_admin_login` RPC)
+- Production build: `flutter build web --target lib/main.dart --release -o build/app` (single unified app). Split builds (`main_store` / `main_admin`) still work.
+
+---
+
 ## Manual MoMo Payment Flow (Default)
 
 Customers pay the seller directly, then submit proof for seller verification:

@@ -2,7 +2,7 @@
 
 **Prepared for:** Priscilla Adutwum
 **Admin Portal URL:** `https://admin.priscyluxury.com` (or local `lib/main_admin.dart`)
-**Admin login:** `adupriscytwum@gmail.com` (temp password `PriscyAdmin2026!` — change it immediately)
+**Admin login:** Sign in at the **same login as customers** (`/account`) with `adupriscytwum@gmail.com` (temp password `PriscyAdmin2026!` — change it immediately). After sign-in you are auto-redirected to the Admin Dashboard (`/admin`). A gold **Admin** badge appears in the header.
 
 ---
 
